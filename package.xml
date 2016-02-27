@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>pico_flexx_driver</name>
+  <version>0.1.0</version>
+  <description>ROS driver for the pmd CamBoard pico flexx</description>
+  <author email="wiedemeyer@cs.uni-bremen.de">Thiemo Wiedemeyer</author>
+  <maintainer email="mferguson@fetchrobotics.com">Michael Ferguson</maintainer>
+  <license>GPLv3</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>royale-dev</build_depend>
+
+  <depend>dynamic_reconfigure</depend>
+  <depend>nodelet</depend>
+  <depend>roscpp</depend>
+  <depend>rostime</depend>
+  <depend>royale</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+
+  <export>
+    <nodelet plugin="${prefix}/nodelet_plugins.xml" />
+  </export>
+</package>
