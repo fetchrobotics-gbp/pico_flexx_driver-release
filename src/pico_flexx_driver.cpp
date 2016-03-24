@@ -45,9 +45,8 @@
 #define PF_TF_LINK          "_link"
 #define PF_TF_OPT_FRAME     "_optical_frame"
 #define PF_TOPIC_INFO       "/camera_info"
-#define PF_TOPIC_MONO8      "/image_mono8"
 #define PF_TOPIC_MONO16     "/image_mono16"
-#define PF_TOPIC_DEPTH      "/image_depth"
+#define PF_TOPIC_DEPTH      "/image_raw"
 #define PF_TOPIC_NOISE      "/image_noise"
 #define PF_TOPIC_CLOUD      "/points"
 
@@ -106,7 +105,6 @@ private:
   enum Topics
   {
     CAMERA_INFO = 0,
-    MONO_8,
     MONO_16,
     DEPTH,
     NOISE,
@@ -443,7 +441,6 @@ private:
     publisher.resize(COUNT);
     ros::SubscriberStatusCallback cb = boost::bind(&PicoFlexx::callbackTopicStatus, this);
     publisher[CAMERA_INFO] = nh.advertise<sensor_msgs::CameraInfo>(baseName + PF_TOPIC_INFO, queueSize, cb, cb);
-    publisher[MONO_8] = nh.advertise<sensor_msgs::Image>(baseName + PF_TOPIC_MONO8, queueSize, cb, cb);
     publisher[MONO_16] = nh.advertise<sensor_msgs::Image>(baseName + PF_TOPIC_MONO16, queueSize, cb, cb);
     publisher[DEPTH] = nh.advertise<sensor_msgs::Image>(baseName + PF_TOPIC_DEPTH, queueSize, cb, cb);
     publisher[NOISE] = nh.advertise<sensor_msgs::Image>(baseName + PF_TOPIC_NOISE, queueSize, cb, cb);
@@ -664,11 +661,10 @@ private:
   {
     std::unique_ptr<royale::DepthData> data;
     sensor_msgs::CameraInfoPtr msgCameraInfo;
-    sensor_msgs::ImagePtr msgMono8, msgMono16, msgDepth, msgNoise;
+    sensor_msgs::ImagePtr msgMono16, msgDepth, msgNoise;
     sensor_msgs::PointCloud2Ptr msgCloud;
 
     msgCameraInfo = sensor_msgs::CameraInfoPtr(new sensor_msgs::CameraInfo);
-    msgMono8 = sensor_msgs::ImagePtr(new sensor_msgs::Image);
     msgMono16 = sensor_msgs::ImagePtr(new sensor_msgs::Image);
     msgDepth = sensor_msgs::ImagePtr(new sensor_msgs::Image);
     msgNoise = sensor_msgs::ImagePtr(new sensor_msgs::Image);
@@ -689,8 +685,8 @@ private:
       lock.unlock();
 
       lockStatus.lock();
-      extractData(*data, msgCameraInfo, msgCloud, msgMono8, msgMono16, msgDepth, msgNoise);
-      publish(msgCameraInfo, msgCloud, msgMono8, msgMono16, msgDepth, msgNoise);
+      extractData(*data, msgCameraInfo, msgCloud, msgMono16, msgDepth, msgNoise);
+      publish(msgCameraInfo, msgCloud, msgMono16, msgDepth, msgNoise);
       lockStatus.unlock();
 
       end = std::chrono::high_resolution_clock::now();
@@ -705,7 +701,7 @@ private:
   }
 
   void extractData(const royale::DepthData &data, sensor_msgs::CameraInfoPtr &msgCameraInfo, sensor_msgs::PointCloud2Ptr &msgCloud,
-                   sensor_msgs::ImagePtr &msgMono8, sensor_msgs::ImagePtr &msgMono16, sensor_msgs::ImagePtr &msgDepth, sensor_msgs::ImagePtr &msgNoise) const
+                   sensor_msgs::ImagePtr &msgMono16, sensor_msgs::ImagePtr &msgDepth, sensor_msgs::ImagePtr &msgNoise) const
   {
     std_msgs::Header header;
     header.frame_id = baseNameTF + PF_TF_OPT_FRAME;
@@ -720,7 +716,7 @@ private:
       msgCameraInfo->width = data.width;
     }
 
-    if(!(status[MONO_8] || status[MONO_16] || status[DEPTH] || status[NOISE] || status[CLOUD]))
+    if(!(status[MONO_16] || status[DEPTH] || status[NOISE] || status[CLOUD]))
     {
       return;
     }
@@ -756,7 +752,7 @@ private:
     msgCloud->is_dense = false;
     msgCloud->point_step = (uint32_t)(5 * sizeof(float));
     msgCloud->row_step = (uint32_t)(5 * sizeof(float) * data.width);
-    msgCloud->fields.resize(6);
+    msgCloud->fields.resize(5);
     msgCloud->fields[0].name = "x";
     msgCloud->fields[0].offset = 0;
     msgCloud->fields[0].datatype = sensor_msgs::PointField::FLOAT32;
@@ -775,27 +771,25 @@ private:
     msgCloud->fields[3].count = 1;
     msgCloud->fields[4].name = "intensity";
     msgCloud->fields[4].offset = msgCloud->fields[3].offset + sizeof(float);
-    msgCloud->fields[4].datatype = sensor_msgs::PointField::UINT16;
+    msgCloud->fields[4].datatype = sensor_msgs::PointField::FLOAT32;
     msgCloud->fields[4].count = 1;
-    msgCloud->fields[5].name = "gray";
-    msgCloud->fields[5].offset = msgCloud->fields[4].offset + sizeof(uint16_t);
-    msgCloud->fields[5].datatype = sensor_msgs::PointField::UINT8;
-    msgCloud->fields[5].count = 1;
     msgCloud->data.resize(5 * sizeof(float) * data.points.size());
 
     const float invalid = std::numeric_limits<float>::quiet_NaN();
     const royale::DepthPoint *itI = &data.points[0];
-    float *itCX = (float *)&msgCloud->data[0];
-    float *itCY = itCX + 1;
-    float *itCZ = itCY + 1;
-    float *itCN = itCZ + 1;
-    uint16_t *itCM = (uint16_t *)(itCN + 1);
+    float *itCX = (float *)&msgCloud->data[0];  // X
+    float *itCY = itCX + 1;                     // Y
+    float *itCZ = itCY + 1;                     // Z
+    float *itCN = itCZ + 1;                     // Noise
+    float *itCM = itCN + 1;                     // Intensity
     float *itD = (float *)&msgDepth->data[0];
     float *itN = (float *)&msgNoise->data[0];
     uint16_t *itM = (uint16_t *)&msgMono16->data[0];
-    for(size_t i = 0; i < data.points.size(); ++i, ++itI, itCX += 5, itCY += 5, itCZ += 5, itCN += 5, itCM += 10, ++itD, ++itM, ++itN)
+    for (size_t i = 0;
+         i < data.points.size();
+         ++i, ++itI, itCX += 5, itCY += 5, itCZ += 5, itCN += 5, itCM += 5, ++itD, ++itM, ++itN)
     {
-      if(itI->depthConfidence && itI->noise < maxNoise)
+      if (itI->depthConfidence && itI->noise < maxNoise)
       {
         *itCX = itI->x;
         *itCY = itI->y;
@@ -810,97 +804,25 @@ private:
         *itCY = invalid;
         *itCZ = invalid;
         *itCN = 0.0f;
-        *itD = 0.0f;
+        *itD = invalid;
         *itN = 0.0f;
       }
       *itCM = itI->grayValue;
       *itM = itI->grayValue;
     }
-
-    computeMono8(msgMono16, msgMono8, msgCloud);
   }
 
-  void computeMono8(const sensor_msgs::ImageConstPtr &msgMono16, sensor_msgs::ImagePtr &msgMono8, sensor_msgs::PointCloud2Ptr &msgCloud) const
-  {
-    msgMono8->header = msgMono16->header;
-    msgMono8->height = msgMono16->height;
-    msgMono8->width = msgMono16->width;
-    msgMono8->is_bigendian = msgMono16->is_bigendian;
-    msgMono8->encoding = sensor_msgs::image_encodings::MONO8;
-    msgMono8->step = (uint32_t)(sizeof(uint8_t) * msgMono8->width);
-    msgMono8->data.resize(sizeof(uint8_t) * msgMono8->width * msgMono8->height);
-
-    const uint16_t *pMono16 = (const uint16_t *)&msgMono16->data[0];
-    uint8_t *pMono8 = (uint8_t *)&msgMono8->data[0];
-    const size_t size = msgMono8->width * msgMono8->height;
-
-    uint64_t sum = 0;
-    uint64_t count = 0;
-
-    const uint16_t *itI = pMono16;
-    for(size_t i = 0; i < size; ++i, ++itI)
-    {
-      if(*itI)
-      {
-        sum += *itI;
-        ++count;
-      }
-    }
-    const double average = (double)sum / (double)count;
-    double deviation = 0;
-
-    itI = pMono16;
-    for(size_t i = 0; i < size; ++i, ++itI)
-    {
-      if(*itI)
-      {
-        const double diff = (double) * itI - average;
-        deviation += (diff * diff);
-      }
-    }
-    deviation = sqrt(deviation / ((double)count - 1.0));
-
-    const uint16_t minV = (uint16_t)std::max(average - rangeFactor * deviation, 0.0);
-    const uint16_t maxV = (uint16_t)std::min(average + rangeFactor * deviation, 65535.0) - minV;
-    const double maxVF = 255.0 / (double)maxV;
-    uint8_t *itO = pMono8;
-    uint8_t *itP = ((uint8_t *)&msgCloud->data[0]) + 18;
-    itI = pMono16;
-    for(size_t i = 0; i < size; ++i, ++itI, ++itO, itP += 20)
-    {
-      uint16_t v = *itI;
-      if(v < minV)
-      {
-        v = 0;
-      }
-      else
-      {
-        v -= minV;
-      }
-      if(v > maxV)
-      {
-        v = maxV;
-      }
-
-      const uint8_t newV = (uint8_t)((double)v * maxVF);
-      *itO = newV;
-      *itP = newV;
-    }
-  }
-
-  void publish(sensor_msgs::CameraInfoPtr &msgCameraInfo, sensor_msgs::PointCloud2Ptr &msgCloud,
-               sensor_msgs::ImagePtr &msgMono8, sensor_msgs::ImagePtr &msgMono16,
-               sensor_msgs::ImagePtr &msgDepth, sensor_msgs::ImagePtr &msgNoise) const
+  void publish(
+    sensor_msgs::CameraInfoPtr &msgCameraInfo,
+    sensor_msgs::PointCloud2Ptr &msgCloud,
+    sensor_msgs::ImagePtr &msgMono16,
+    sensor_msgs::ImagePtr &msgDepth,
+    sensor_msgs::ImagePtr &msgNoise) const
   {
     if(status[CAMERA_INFO])
     {
       publisher[CAMERA_INFO].publish(msgCameraInfo);
       msgCameraInfo = sensor_msgs::CameraInfoPtr(new sensor_msgs::CameraInfo);
-    }
-    if(status[MONO_8])
-    {
-      publisher[MONO_8].publish(msgMono8);
-      msgMono8 = sensor_msgs::ImagePtr(new sensor_msgs::Image);
     }
     if(status[MONO_16])
     {
