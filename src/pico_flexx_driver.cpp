@@ -865,9 +865,9 @@ private:
       processTime = 0;
       startTime = now;
       delayReceived = 0;
-      OUT_INFO("processing: " FG_YELLOW "~" << std::setprecision(4) << timePerFrame << " ms." NO_COLOR
-               " fps: " FG_YELLOW "~" << framesPerSecond << " Hz" NO_COLOR
-               " delay: " FG_YELLOW "~" << avgDelay << " ms." NO_COLOR);
+      OUT_DEBUG("processing: " FG_YELLOW "~" << std::setprecision(4) << timePerFrame << " ms." NO_COLOR
+                " fps: " FG_YELLOW "~" << framesPerSecond << " Hz" NO_COLOR
+                " delay: " FG_YELLOW "~" << avgDelay << " ms." NO_COLOR);
     }
     ++frame;
   }
