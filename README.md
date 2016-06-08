@@ -1,9 +1,5 @@
 # PMD CamBoard pico flexx Driver
 
-## Maintainer
-
-- [Thiemo Wiedemeyer](https://ai.uni-bremen.de/team/thiemo_wiedemeyer) <<wiedemeyer@cs.uni-bremen.de>>, [Institute for Artificial Intelligence](http://ai.uni-bremen.de/), University of Bremen
-
 ## Table of contents
 - [Description](#description)
 - [Dependencies](#dependencies)
@@ -26,17 +22,11 @@ A launch file with static TF publisher, nodelet manager and machine tag support 
 
 1. Install the ROS. [Instructions for Ubuntu 14.04](http://wiki.ros.org/indigo/Installation/Ubuntu)
 2. [Setup your ROS environment](http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment)
-3. Download the Royale SDK from http://www.pmdtec.com/picoflexx/ and extract it
-4. Extract the linux 64 bit archive from the extracted SDK.
-5. Install the headers and library from the SDK using the provided [script](install_libroyale.sh)
-   ```
-cd <catkin_ws>/src/pico_flexx_driver
-sudo ./install_libroyale.sh <path to extracted linux 64 bit archive>
-```
-6. Run `catkin_make`
-7. Plug in the CamBoard pico flexx device
-8. Run `roslaunch pico_flexx_driver pico_flexx_driver.launch publish_tf:=true`
-9. Start `rosrun rviz rviz`, set the `Fixed frame` to `pico_flexx_link` and add a `PointCloud2` and select `/pico_flexx/points`
+3. Install libroyale-dev debian
+4. Run `catkin_make`
+5. Plug in the CamBoard pico flexx device
+6. Run `roslaunch pico_flexx_driver pico_flexx_driver.launch publish_tf:=true`
+7. Start `rosrun rviz rviz`, set the `Fixed frame` to `pico_flexx_link` and add a `PointCloud2` and select `/pico_flexx/points`
 
 ## Usage
 
@@ -142,11 +132,6 @@ Bandwidth: 76.67 KB per message (@5 Hz: ~383 KB/s, @45 Hz: ~ 3450 KB/s)
 
 This is the distorted IR image. It is a 16-Bit image where each pixel is an intensity measurement.
 
-##### `/pico_flexx/image_mono8`
-Bandwidth: 38.37 KB per message (@5 Hz: ~192 KB/s, @45 Hz: ~ 1727 KB/s)
-
-This is the distorted IR image. It is a 8-Bit image where each pixel is an intensity measurement.
-
 ##### `/pico_flexx/image_noise`
 Bandwidth: 153.28 KB per message (@5 Hz: ~766 KB/s, @45 Hz: ~ 6897 KB/s)
 
@@ -155,5 +140,5 @@ This is the distorted noise image. It is a 32-Bit float image where each pixel i
 ##### `/pico_flexx/points`
 Bandwidth: 770 KB per message (@5 Hz: ~3850 KB/s, @45 Hz: ~ 34650 KB/s)
 
-This is the point cloud created by the sensor. It contains 6 fields in the following order: X, Y, Z, Noise (float), Intensity (16-Bit), Gray (8-Bit).
+This is the point cloud created by the sensor. It contains 6 fields in the following order: X, Y, Z, Noise (float), Intensity (float).
 The 3D points themself are undistorted, while the 2D coordinates of the points are distorted. The point cloud is organized, so that the each point belongs to the pixel with the same index in one of the other images.
