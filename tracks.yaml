@@ -19,5 +19,5 @@ tracks:
     release_tag: :{version}
     ros_distro: indigo
     vcs_type: git
-    vcs_uri: git@github.com:mikeferguson/pico_flexx_driver.git
+    vcs_uri: git@github.com:fetchrobotics-forks/pico_flexx_driver.git
     version: :{auto}
